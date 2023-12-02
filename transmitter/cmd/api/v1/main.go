@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
-	minio2 "github.com/central-university-dev/2023-autumn-ab-go-hw-9-g0r0d3tsky/internal/adapters/minio"
+	minio2 "github.com/central-university-dev/2023-autumn-ab-go-hw-9-g0r0d3tsky/internal/adapters/filedb/impl"
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
 	"gopkg.in/yaml.v3"
@@ -16,7 +16,7 @@ func main() {
 	yamlFile, _ := os.ReadFile("config_minio.yaml")
 	yaml.Unmarshal(yamlFile, &cfg)
 	minioClient, err := minio.New(cfg.Url, &minio.Options{
-		Creds:  credentials.NewStaticV4(cfg.User, cfg.Password, ""),
+		Creds:  credentials.NewStaticV4(cfg.User, cfg.Password, cfg.Token),
 		Secure: cfg.Ssl,
 	})
 	if err != nil {
@@ -31,5 +31,6 @@ func main() {
 	if err != nil {
 		return
 	}
-	fmt.Println(cl.DownloadFile(context.TODO(), "file1.txt"))
+	file, _ := cl.DownloadFile(context.TODO(), "gopher.jpg")
+	fmt.Println(file.PayloadSize)
 }

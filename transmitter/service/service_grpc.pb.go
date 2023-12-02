@@ -2,7 +2,7 @@
 // versions:
 // - protoc-gen-go-grpc v1.3.0
 // - protoc             v3.20.3
-// source: proto/service.proto
+// source: service/service.service
 
 package types
 
@@ -30,7 +30,7 @@ const (
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type TransmitterClient interface {
 	CreateFile(ctx context.Context, in *CreateFileRequest, opts ...grpc.CallOption) (*SuccessResponse, error)
-	GetFile(ctx context.Context, in *GetFileRequest, opts ...grpc.CallOption) (*GetFileResponse, error)
+	GetFile(ctx context.Context, in *GetFileRequest, opts ...grpc.CallOption) (Transmitter_GetFileClient, error)
 	GetFileList(ctx context.Context, in *GetFileListRequest, opts ...grpc.CallOption) (*GetFileListResponse, error)
 	GetFileInfo(ctx context.Context, in *GetFileInfoRequest, opts ...grpc.CallOption) (*GetFileInfoResponse, error)
 }
@@ -52,13 +52,36 @@ func (c *transmitterClient) CreateFile(ctx context.Context, in *CreateFileReques
 	return out, nil
 }
 
-func (c *transmitterClient) GetFile(ctx context.Context, in *GetFileRequest, opts ...grpc.CallOption) (*GetFileResponse, error) {
-	out := new(GetFileResponse)
-	err := c.cc.Invoke(ctx, Transmitter_GetFile_FullMethodName, in, out, opts...)
+func (c *transmitterClient) GetFile(ctx context.Context, in *GetFileRequest, opts ...grpc.CallOption) (Transmitter_GetFileClient, error) {
+	stream, err := c.cc.NewStream(ctx, &Transmitter_ServiceDesc.Streams[0], Transmitter_GetFile_FullMethodName, opts...)
 	if err != nil {
 		return nil, err
 	}
-	return out, nil
+	x := &transmitterGetFileClient{stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+type Transmitter_GetFileClient interface {
+	Recv() (*GetFileResponse, error)
+	grpc.ClientStream
+}
+
+type transmitterGetFileClient struct {
+	grpc.ClientStream
+}
+
+func (x *transmitterGetFileClient) Recv() (*GetFileResponse, error) {
+	m := new(GetFileResponse)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
 }
 
 func (c *transmitterClient) GetFileList(ctx context.Context, in *GetFileListRequest, opts ...grpc.CallOption) (*GetFileListResponse, error) {
@@ -84,7 +107,7 @@ func (c *transmitterClient) GetFileInfo(ctx context.Context, in *GetFileInfoRequ
 // for forward compatibility
 type TransmitterServer interface {
 	CreateFile(context.Context, *CreateFileRequest) (*SuccessResponse, error)
-	GetFile(context.Context, *GetFileRequest) (*GetFileResponse, error)
+	GetFile(*GetFileRequest, Transmitter_GetFileServer) error
 	GetFileList(context.Context, *GetFileListRequest) (*GetFileListResponse, error)
 	GetFileInfo(context.Context, *GetFileInfoRequest) (*GetFileInfoResponse, error)
 	mustEmbedUnimplementedTransmitterServer()
@@ -97,8 +120,8 @@ type UnimplementedTransmitterServer struct {
 func (UnimplementedTransmitterServer) CreateFile(context.Context, *CreateFileRequest) (*SuccessResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CreateFile not implemented")
 }
-func (UnimplementedTransmitterServer) GetFile(context.Context, *GetFileRequest) (*GetFileResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetFile not implemented")
+func (UnimplementedTransmitterServer) GetFile(*GetFileRequest, Transmitter_GetFileServer) error {
+	return status.Errorf(codes.Unimplemented, "method GetFile not implemented")
 }
 func (UnimplementedTransmitterServer) GetFileList(context.Context, *GetFileListRequest) (*GetFileListResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetFileList not implemented")
@@ -137,22 +160,25 @@ func _Transmitter_CreateFile_Handler(srv interface{}, ctx context.Context, dec f
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Transmitter_GetFile_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetFileRequest)
-	if err := dec(in); err != nil {
-		return nil, err
+func _Transmitter_GetFile_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(GetFileRequest)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
 	}
-	if interceptor == nil {
-		return srv.(TransmitterServer).GetFile(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: Transmitter_GetFile_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(TransmitterServer).GetFile(ctx, req.(*GetFileRequest))
-	}
-	return interceptor(ctx, in, info, handler)
+	return srv.(TransmitterServer).GetFile(m, &transmitterGetFileServer{stream})
+}
+
+type Transmitter_GetFileServer interface {
+	Send(*GetFileResponse) error
+	grpc.ServerStream
+}
+
+type transmitterGetFileServer struct {
+	grpc.ServerStream
+}
+
+func (x *transmitterGetFileServer) Send(m *GetFileResponse) error {
+	return x.ServerStream.SendMsg(m)
 }
 
 func _Transmitter_GetFileList_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
@@ -203,10 +229,6 @@ var Transmitter_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _Transmitter_CreateFile_Handler,
 		},
 		{
-			MethodName: "GetFile",
-			Handler:    _Transmitter_GetFile_Handler,
-		},
-		{
 			MethodName: "GetFileList",
 			Handler:    _Transmitter_GetFileList_Handler,
 		},
@@ -215,6 +237,12 @@ var Transmitter_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _Transmitter_GetFileInfo_Handler,
 		},
 	},
-	Streams:  []grpc.StreamDesc{},
-	Metadata: "proto/service.proto",
+	Streams: []grpc.StreamDesc{
+		{
+			StreamName:    "GetFile",
+			Handler:       _Transmitter_GetFile_Handler,
+			ServerStreams: true,
+		},
+	},
+	Metadata: "service/service.service",
 }

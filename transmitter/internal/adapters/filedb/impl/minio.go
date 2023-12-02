@@ -1,4 +1,4 @@
-package minio
+package impl
 
 import (
 	"github.com/minio/minio-go/v7"
@@ -13,10 +13,10 @@ type MinioProvider struct {
 }
 
 type MinioAuthData struct {
-	Url      string `yaml:"url"`
-	User     string `yaml:"user"`
-	Password string `yaml:"password"`
-	//Token                string `yaml:"token"`
+	Url                  string `yaml:"url"`
+	User                 string `yaml:"user"`
+	Password             string `yaml:"password"`
+	Token                string `yaml:"token"`
 	Ssl                  bool   `yaml:"ssl"`
 	UserObjectBucketName string `yaml:"bucket_name"`
 }

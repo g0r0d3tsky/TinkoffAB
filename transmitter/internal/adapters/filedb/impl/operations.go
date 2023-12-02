@@ -1,4 +1,4 @@
-package minio
+package impl
 
 import (
 	"bytes"
@@ -9,7 +9,7 @@ import (
 	"log"
 )
 
-// UploadFile - Отправляет файл в minio
+// UploadFile - Отправляет файл в filedb
 //func (m *MinioProvider) UploadFile(ctx context.Context, object domain.File) (string, error) {
 //
 //	_, err := m.client.PutObject(
@@ -18,13 +18,13 @@ import (
 //		object.Name,
 //		object.ID,
 //		object.P,
-//		minio.PutObjectOptions{ContentType: "image/png"},
+//		filedb.PutObjectOptions{ContentType: "image/png"},
 //	)
 //
 //	return imageName, err
 //}
 
-// DownloadFile - Возвращает файл из minio
+// DownloadFile - Возвращает файл из filedb
 func (m *MinioProvider) DownloadFile(ctx context.Context, name string) (domain.FileUnit, error) {
 	reader, err := m.Client.GetObject(
 		ctx,
