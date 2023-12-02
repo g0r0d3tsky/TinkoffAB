@@ -1,0 +1,47 @@
+syntax = "proto3";
+
+option go_package = "./;types";
+
+package transmitter;
+
+message File {
+  string id = 1;
+  string name = 2;
+  int32 size = 3;
+  string type = 4;
+  bytes data = 5;
+}
+
+message GetFileRequest {
+  string id = 1;
+}
+message GetFileResponse {
+  bytes data = 1;
+}
+
+message GetFileListRequest {}
+message GetFileListResponse {
+  repeated File file = 1;
+}
+
+message GetFileInfoRequest{
+  string name = 1;
+}
+
+message GetFileInfoResponse {
+  File file = 1;
+}
+message CreateFileRequest{
+    File file = 1;
+}
+message SuccessResponse{
+  string response = 1;
+}
+
+
+service Transmitter {
+   rpc CreateFile(CreateFileRequest) returns (SuccessResponse);
+   rpc GetFile(GetFileRequest) returns (stream GetFileResponse) ;
+   rpc GetFileList(GetFileListRequest) returns (GetFileListResponse) ;
+   rpc GetFileInfo(GetFileInfoRequest) returns (GetFileInfoResponse);
+}
