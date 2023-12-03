@@ -4,51 +4,81 @@ import (
 	"context"
 	miniotype "github.com/central-university-dev/2023-autumn-ab-go-hw-9-g0r0d3tsky/internal/adapters/filedb"
 	"github.com/central-university-dev/2023-autumn-ab-go-hw-9-g0r0d3tsky/internal/adapters/metadb"
-	s "github.com/central-university-dev/2023-autumn-ab-go-hw-9-g0r0d3tsky/service"
+	pb "github.com/central-university-dev/2023-autumn-ab-go-hw-9-g0r0d3tsky/service"
+	"io"
 )
+
+var chunkSize = 1024 * 32
 
 type server struct {
 	miniotype.FileDB
 	metadb.FileMeta
-	s.UnimplementedTransmitterServer
+	pb.UnimplementedTransmitterServer
 }
 
-func (serv *server) CreateFile(ctx context.Context, req *s.CreateFileRequest) (*s.SuccessResponse, error) {
-	//TODO:
-	return &s.SuccessResponse{Response: "create success"}, nil
-}
+//func (serv *server) CreateFile(ctx context.Context, req *s.CreateFileRequest) (*s.SuccessResponse, error) {
+//	//TODO:
+//	return &s.SuccessResponse{Response: "create success"}, nil
+//}
 
-func (serv *server) GetFile(req *s.GetFileRequest, stream s.Transmitter_GetFileServer) error {
+func (serv *server) GetFile(req *pb.GetFileRequest, stream pb.Transmitter_GetFileServer) error {
 	fileName := req.GetName()
-	file, err := serv.FileDB.DownloadFile(context.TODO(), fileName)
+
+	fileUnit, err := serv.FileDB.DownloadFile(context.TODO(), fileName)
 	if err != nil {
 		return err
 	}
 
+	chunkBuffer := make([]byte, chunkSize)
+
+	for {
+		bytesRead, err := fileUnit.Payload.Read(chunkBuffer)
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			return err
+		}
+
+		response := &pb.GetFileResponse{
+			Data: chunkBuffer[:bytesRead],
+		}
+		if err := stream.Send(response); err != nil {
+			return err
+		}
+	}
 	return nil
 }
-func (serv *server) GetFileList(context.Context, *s.GetFileListRequest) (*s.GetFileListResponse, error) {
-	// Добавьте свою логику для метода GetFileList
-	// ...
 
-	// Верните список файлов
-	fileList := []*s.File{
-		{FileName: "file1.txt", Size: 1024},
-		{FileName: "file2.txt", Size: 2048},
+func (serv *server) GetFileList(context.Context, *pb.GetFileListRequest) (*pb.GetFileListResponse, error) {
+	fileList, err := serv.FileDB.GetList()
+	if err != nil {
+		return nil, err
+	}
+	response := &pb.GetFileListResponse{
+		Name: fileList,
 	}
 
-	return &s.GetFileListResponse{Files: fileList}, nil
+	return response, nil
 }
-func (serv *server) GetFileInfo(context.Context, *s.GetFileInfoRequest) (*s.GetFileInfoResponse, error) {
-	// Добавьте свою логику для метода GetFileInfo
-	// ...
-
-	// Верните информацию о файле
-	fileInfo := &s.FileInfo{
-		FileName: "file.txt",
-		Size:     1024,
-		Owner:    "John Doe",
+func (serv *server) GetFileInfo(ctx context.Context, req *pb.GetFileInfoRequest) (*pb.GetFileInfoResponse, error) {
+	fileName := req.GetName()
+	fileInfo, err := serv.FileDB.DownloadFile(ctx, fileName)
+	if err != nil {
+		return nil, err
+	}
+	fileMeta, err := serv.FileMeta.GetFileByName(fileName)
+	if err != nil {
+		return nil, err
+	}
+	file := &pb.File{
+		Name:  fileName,
+		Size:  int32(fileInfo.PayloadSize),
+		Owner: fileMeta.Owner,
+	}
+	response := &pb.GetFileInfoResponse{
+		File: file,
 	}
 
-	return &s.GetFileInfoResponse{Info: fileInfo}, nil
+	return response, nil
 }

@@ -8,7 +8,7 @@ import (
 )
 
 type FileDB interface {
-	DownloadFile(ctx context.Context, name string) (domain.FileUnit, error)
+	DownloadFile(ctx context.Context, name string) (*domain.FileUnit, error)
 	GetList() ([]string, error)
 }
 

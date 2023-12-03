@@ -7,20 +7,21 @@ package transmitter;
 message File {
   string name = 1;
   int32 size = 2;
-  string type = 3;
-  bytes data = 4;
+  string owner = 3;
 }
 
 message GetFileRequest {
   string name = 1;
 }
+
 message GetFileResponse {
   bytes data = 1;
 }
 
 message GetFileListRequest {}
+
 message GetFileListResponse {
-  repeated File file = 1;
+  repeated string name = 1;
 }
 
 message GetFileInfoRequest{
