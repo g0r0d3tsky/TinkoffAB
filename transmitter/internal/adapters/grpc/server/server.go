@@ -19,9 +19,8 @@ func (serv *server) CreateFile(ctx context.Context, req *s.CreateFileRequest) (*
 }
 
 func (serv *server) GetFile(req *s.GetFileRequest, stream s.Transmitter_GetFileServer) error {
-	// Отправьте данные клиенту через потоковую передачу (stream)
-	fileData := []byte("File data") // Пример данных файла
-	err := stream.Send(&s.GetFileResponse{Data: fileData})
+	fileName := req.GetName()
+	file, err := serv.FileDB.DownloadFile(context.TODO(), fileName)
 	if err != nil {
 		return err
 	}

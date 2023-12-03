@@ -18,8 +18,8 @@ func (fp *FilePostgres) GetFileByName(name string) (*domain.File, error) {
 	file := &domain.File{}
 
 	if err := fp.db.QueryRow(
-		`SELECT name, size, type, owner, date  FROM "files" f WHERE f.name = $1`, name,
-	).Scan(&file.Name, &file.Size, &file.Type, &file.Owner, &file.Date); err != nil {
+		`SELECT id, name, size, type, owner, date  FROM "files" f WHERE f.name = $1`, name,
+	).Scan(&file.ID, &file.Name, &file.Size, &file.Type, &file.Owner, &file.Date); err != nil {
 		return nil, err
 	}
 
@@ -30,7 +30,7 @@ func (fp *FilePostgres) GetFileList() ([]*domain.File, error) {
 	var files []*domain.File
 
 	rows, err := fp.db.Query(
-		`SELECT name, size, type, owner, date FROM "files"`,
+		`SELECT id, name, size, type, owner, date FROM "files"`,
 	)
 
 	if err != nil {
@@ -39,7 +39,7 @@ func (fp *FilePostgres) GetFileList() ([]*domain.File, error) {
 	for rows.Next() {
 		file := &domain.File{}
 
-		if err := rows.Scan(&file.Name, &file.Size, &file.Type, &file.Owner, &file.Date); err != nil {
+		if err := rows.Scan(&file.ID, &file.Name, &file.Size, &file.Type, &file.Owner, &file.Date); err != nil {
 			return nil, err
 		}
 

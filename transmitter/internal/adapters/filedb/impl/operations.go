@@ -25,7 +25,7 @@ import (
 //}
 
 // DownloadFile - Возвращает файл из filedb
-func (m *MinioProvider) DownloadFile(ctx context.Context, name string) (domain.FileUnit, error) {
+func (m *MinioProvider) DownloadFile(ctx context.Context, name string) (*domain.FileUnit, error) {
 	reader, err := m.Client.GetObject(
 		ctx,
 		m.UserObjectBucketName,
@@ -33,16 +33,16 @@ func (m *MinioProvider) DownloadFile(ctx context.Context, name string) (domain.F
 		minio.GetObjectOptions{},
 	)
 	if err != nil {
-		return domain.FileUnit{}, err
+		return nil, err
 	}
 	defer reader.Close()
 
 	data, err := io.ReadAll(reader)
 	if err != nil {
-		return domain.FileUnit{}, err
+		return nil, err
 	}
 
-	fileUnit := domain.FileUnit{
+	fileUnit := &domain.FileUnit{
 		Payload:     bytes.NewReader(data),
 		PayloadName: name,           // Имя файла (можно использовать значение переменной name)
 		PayloadSize: int(len(data)), // Размер файла (используем длину данных)
