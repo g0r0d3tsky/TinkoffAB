@@ -6,11 +6,10 @@ import (
 )
 
 type File struct {
-	ID   uuid.UUID
-	Name string
-	Size int
-	Type string
-	Data []byte
+	ID    uuid.UUID
+	Name  string
+	Size  int
+	Owner string
 }
 type FileUnit struct {
 	Payload     io.Reader
