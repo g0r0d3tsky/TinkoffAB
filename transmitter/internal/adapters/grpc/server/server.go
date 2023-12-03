@@ -18,7 +18,7 @@ func (serv *server) CreateFile(ctx context.Context, req *s.CreateFileRequest) (*
 	return &s.SuccessResponse{Response: "create success"}, nil
 }
 
-func (serv *server) GetFile(*s.GetFileRequest, s.Transmitter_GetFileServer) error {
+func (serv *server) GetFile(req *s.GetFileRequest, stream s.Transmitter_GetFileServer) error {
 	// Отправьте данные клиенту через потоковую передачу (stream)
 	fileData := []byte("File data") // Пример данных файла
 	err := stream.Send(&s.GetFileResponse{Data: fileData})

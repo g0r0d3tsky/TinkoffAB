@@ -2,7 +2,7 @@
 // versions:
 // - protoc-gen-go-grpc v1.3.0
 // - protoc             v3.20.3
-// source: service/service.service
+// source: service/service.proto
 
 package types
 
@@ -244,5 +244,5 @@ var Transmitter_ServiceDesc = grpc.ServiceDesc{
 			ServerStreams: true,
 		},
 	},
-	Metadata: "service/service.service",
+	Metadata: "service/service.proto",
 }
