@@ -2,8 +2,8 @@ package server
 
 import (
 	"context"
-	miniotype "github.com/central-university-dev/2023-autumn-ab-go-hw-9-g0r0d3tsky/internal/adapters/filedb"
-	"github.com/central-university-dev/2023-autumn-ab-go-hw-9-g0r0d3tsky/internal/adapters/metadb"
+	miniotype "github.com/central-university-dev/2023-autumn-ab-go-hw-9-g0r0d3tsky/internal/adapters/minio"
+	"github.com/central-university-dev/2023-autumn-ab-go-hw-9-g0r0d3tsky/internal/adapters/repo"
 	pb "github.com/central-university-dev/2023-autumn-ab-go-hw-9-g0r0d3tsky/service"
 	"io"
 )
@@ -12,14 +12,20 @@ var chunkSize = 1024 * 32
 
 type server struct {
 	miniotype.FileDB
-	metadb.FileMeta
+	repo.FileMeta
 	pb.UnimplementedTransmitterServer
 }
 
-//func (serv *server) CreateFile(ctx context.Context, req *s.CreateFileRequest) (*s.SuccessResponse, error) {
-//	//TODO:
-//	return &s.SuccessResponse{Response: "create success"}, nil
-//}
+//	func (serv *server) CreateFile(ctx context.Context, req *s.CreateFileRequest) (*s.SuccessResponse, error) {
+//		//TODO:
+//		return &s.SuccessResponse{Response: "create success"}, nil
+//	}
+func ServerNew(fileDB miniotype.FileDB, fileMeta repo.FileMeta) pb.TransmitterServer {
+	return &server{
+		FileDB:   fileDB,
+		FileMeta: fileMeta,
+	}
+}
 
 func (serv *server) GetFile(req *pb.GetFileRequest, stream pb.Transmitter_GetFileServer) error {
 	fileName := req.GetName()

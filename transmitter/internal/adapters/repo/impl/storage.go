@@ -1,4 +1,4 @@
-package Impl
+package impl
 
 import (
 	"github.com/central-university-dev/2023-autumn-ab-go-hw-9-g0r0d3tsky/internal/domain"
@@ -18,8 +18,8 @@ func (fp *FilePostgres) GetFileByName(name string) (*domain.File, error) {
 	file := &domain.File{}
 
 	if err := fp.db.QueryRow(
-		`SELECT id, name, size, type, owner, date  FROM "files" f WHERE f.name = $1`, name,
-	).Scan(&file.ID, &file.Name, &file.Size, &file.Type, &file.Owner, &file.Date); err != nil {
+		`SELECT id, name, size, owner  FROM "files" f WHERE f.name = $1`, name,
+	).Scan(&file.ID, &file.Name, &file.Size, &file.Owner, &file.Owner); err != nil {
 		return nil, err
 	}
 
@@ -30,7 +30,7 @@ func (fp *FilePostgres) GetFileList() ([]*domain.File, error) {
 	var files []*domain.File
 
 	rows, err := fp.db.Query(
-		`SELECT id, name, size, type, owner, date FROM "files"`,
+		`SELECT id, name, size, owner FROM "files"`,
 	)
 
 	if err != nil {
@@ -39,7 +39,7 @@ func (fp *FilePostgres) GetFileList() ([]*domain.File, error) {
 	for rows.Next() {
 		file := &domain.File{}
 
-		if err := rows.Scan(&file.ID, &file.Name, &file.Size, &file.Type, &file.Owner, &file.Date); err != nil {
+		if err := rows.Scan(&file.ID, &file.Name, &file.Size, &file.Owner); err != nil {
 			return nil, err
 		}
 

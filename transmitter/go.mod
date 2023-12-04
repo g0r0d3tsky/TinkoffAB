@@ -3,8 +3,10 @@ module github.com/central-university-dev/2023-autumn-ab-go-hw-9-g0r0d3tsky
 go 1.21.4
 
 require (
+	github.com/caarlos0/env/v9 v9.0.0
 	github.com/google/uuid v1.4.0
 	github.com/jmoiron/sqlx v1.3.5
+	github.com/joho/godotenv v1.5.1
 	github.com/minio/minio-go/v7 v7.0.65-0.20231122233251-1f7dd6b7e3e1
 	google.golang.org/grpc v1.59.0
 	google.golang.org/protobuf v1.31.0

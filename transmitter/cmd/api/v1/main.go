@@ -1,36 +1,45 @@
 package main
 
 import (
-	"context"
-	"fmt"
-	minio2 "github.com/central-university-dev/2023-autumn-ab-go-hw-9-g0r0d3tsky/internal/adapters/filedb/impl"
-	"github.com/minio/minio-go/v7"
-	"github.com/minio/minio-go/v7/pkg/credentials"
+	"github.com/central-university-dev/2023-autumn-ab-go-hw-9-g0r0d3tsky/internal/adapters/grpc/client"
+	server_grpc "github.com/central-university-dev/2023-autumn-ab-go-hw-9-g0r0d3tsky/internal/adapters/grpc/server"
+	miniotype "github.com/central-university-dev/2023-autumn-ab-go-hw-9-g0r0d3tsky/internal/adapters/minio"
+	minio2 "github.com/central-university-dev/2023-autumn-ab-go-hw-9-g0r0d3tsky/internal/adapters/minio/impl"
+	"github.com/central-university-dev/2023-autumn-ab-go-hw-9-g0r0d3tsky/internal/adapters/repo"
+	"github.com/central-university-dev/2023-autumn-ab-go-hw-9-g0r0d3tsky/internal/adapters/repo/impl"
 	"gopkg.in/yaml.v3"
-	"log"
 	"os"
 )
 
 func main() {
-	var cfg minio2.MinioAuthData
-	yamlFile, _ := os.ReadFile("config_minio.yaml")
-	yaml.Unmarshal(yamlFile, &cfg)
-	minioClient, err := minio.New(cfg.Url, &minio.Options{
-		Creds:  credentials.NewStaticV4(cfg.User, cfg.Password, cfg.Token),
-		Secure: cfg.Ssl,
-	})
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	cl := &minio2.MinioProvider{
-		MinioAuthData: cfg,
-		Client:        minioClient,
-	}
-	err = cl.Connect()
+	var cfgMinio minio2.MinioAuthData
+	yamlFile, err := os.ReadFile("config_minio.yaml")
 	if err != nil {
 		return
 	}
-	file, _ := cl.DownloadFile(context.TODO(), "gopher.jpg")
-	fmt.Println(file.PayloadSize)
+	err = yaml.Unmarshal(yamlFile, &cfgMinio)
+	if err != nil {
+		return
+	}
+	fileDB := miniotype.NewStorageMinio(cfgMinio)
+	if err != nil {
+		return
+	}
+
+	var cfgPostgres repo.ConfigPostgres
+	yamlFile, _ = os.ReadFile("config_postgres.yaml")
+	err = yaml.Unmarshal(yamlFile, &cfgPostgres)
+	if err != nil {
+		return
+	}
+	db, err := repo.NewPostgresDB(cfgPostgres)
+	if err != nil {
+		return
+	}
+	metaDB := impl.NewFilePostgres(db)
+	server := server_grpc.ServerNew(fileDB, metaDB)
+	err := client.New()
+	if err != nil {
+		// Обработка ошибки
+	}
 }
