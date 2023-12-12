@@ -4,21 +4,28 @@ import (
 	"context"
 	"fmt"
 	"github.com/caarlos0/env/v9"
+	"github.com/central-university-dev/2023-autumn-ab-go-hw-9-g0r0d3tsky/internal/domain"
 	pb "github.com/central-university-dev/2023-autumn-ab-go-hw-9-g0r0d3tsky/service"
 	"github.com/joho/godotenv"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"io"
 	"log"
+	"os"
+	"path/filepath"
 	"strings"
 )
 
 type Config struct {
 	ServerAddress string `env:"SERVER_ADDRESS"`
 }
+type Client struct {
+	pb.TransmitterClient
+}
+
+var chunkSize = 1024 * 32
 
 func New() error {
-
 	cfg := &Config{}
 	err := godotenv.Load(".env")
 	if err != nil {
@@ -28,10 +35,9 @@ func New() error {
 		return fmt.Errorf("parse config: %w", err)
 	}
 
-	conn, err := grpc.Dial(cfg.ServerAddress, grpc.WithTransportCredentials(
-		insecure.NewCredentials()), grpc.WithBlock())
+	conn, err := grpc.Dial(cfg.ServerAddress, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
-		log.Fatalf("Не удалось установить подключение: %v", err)
+		return fmt.Errorf("failed to establish connection: %v", err)
 	}
 	defer conn.Close()
 
@@ -57,26 +63,80 @@ func New() error {
 
 		switch command {
 		case "file_list":
-			err = getFileList(client)
+			err = GetFileList(client)
 		case "file_info":
-			err = getFileInfo(client, commandArgs)
+			if len(commandArgs) != 1 {
+				fmt.Println("Неверное количество аргументов. Используйте: file_info <имя файла>")
+				continue
+			}
+			err = GetFileInfo(client, commandArgs[0])
 		case "get_file":
-			err = getFile(client, commandArgs)
+			if len(commandArgs) != 1 {
+				fmt.Println("Неверное количество аргументов. Используйте: get_file <имя файла>")
+				continue
+			}
+			err = GetFile(client, commandArgs[0])
+		case "upload_file":
+			if len(commandArgs) != 1 {
+				fmt.Println("Неверное количество аргументов. Используйте: upload_file <путь к файлу>")
+				continue
+			}
+			err = UploadFile(client, commandArgs[0])
 		case "exit":
 			fmt.Println("Выход из программы")
-			break
+			return nil
 		default:
 			fmt.Println("Неизвестная команда")
 			continue
 		}
 
 		if err != nil {
-			log.Printf("Ошибка при выполнении команды: %v", err)
+			fmt.Printf("Ошибка при выполнении команды: %v\n", err)
 		}
 	}
 }
 
-func getFileList(client pb.TransmitterClient) error {
+func UploadFile(client pb.TransmitterClient, filePath string) error {
+	file, err := os.Open(filePath)
+	if err != nil {
+		return fmt.Errorf("не удалось открыть файл: %w", err)
+	}
+	defer file.Close()
+
+	stream, err := client.UploadFile(context.Background())
+	if err != nil {
+		return fmt.Errorf("ошибка при вызове UploadFile: %w", err)
+	}
+
+	buf := make([]byte, chunkSize)
+	for {
+		num, err := file.Read(buf)
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return fmt.Errorf("ошибка при чтении файла: %w", err)
+		}
+
+		if err := stream.Send(&pb.UploadFileRequest{
+			Name:      filepath.Base(filePath),
+			ChunkData: buf[:num],
+		}); err != nil {
+			return fmt.Errorf("ошибка при отправке данных файла: %w", err)
+		}
+	}
+
+	res, err := stream.CloseAndRecv()
+	if err != nil {
+		return fmt.Errorf("ошибка при получении ответа от сервера: %w", err)
+	}
+
+	fmt.Printf("Файл успешно загружен. Имя файла на сервере: %s\n", res.FileName)
+
+	return nil
+}
+
+func GetFileList(client pb.TransmitterClient) error {
 
 	fileListRequest := &pb.GetFileListRequest{}
 	fileListResponse, err := client.GetFileList(context.Background(), fileListRequest)
@@ -92,12 +152,7 @@ func getFileList(client pb.TransmitterClient) error {
 	return nil
 }
 
-func getFileInfo(client pb.TransmitterClient, args []string) error {
-	if len(args) == 0 {
-		return fmt.Errorf("Не указано имя файла")
-	}
-
-	fileName := args[0]
+func GetFileInfo(client pb.TransmitterClient, fileName string) error {
 
 	fileInfoRequest := &pb.GetFileInfoRequest{Name: fileName}
 	fileInfoResponse, err := client.GetFileInfo(context.Background(), fileInfoRequest)
@@ -108,18 +163,11 @@ func getFileInfo(client pb.TransmitterClient, args []string) error {
 	file := fileInfoResponse.GetFile()
 	fmt.Printf("Имя файла: %s\n", file.GetName())
 	fmt.Printf("Размер файла: %d\n", file.GetSize())
-	fmt.Printf("Владелец файла: %s\n", file.GetOwner())
 
 	return nil
 }
 
-func getFile(client pb.TransmitterClient, args []string) error {
-	if len(args) == 0 {
-		return fmt.Errorf("Не указано имя файла")
-	}
-
-	fileName := args[0]
-
+func GetFile(client pb.TransmitterClient, fileName string) error {
 	getFileRequest := &pb.GetFileRequest{Name: fileName}
 	stream, err := client.GetFile(context.Background(), getFileRequest)
 	if err != nil {
@@ -140,4 +188,37 @@ func getFile(client pb.TransmitterClient, args []string) error {
 	}
 
 	return nil
+}
+func (c *Client) Upload(file domain.FileUnit) (string, error) {
+
+	stream, err := c.UploadFile(context.TODO())
+	if err != nil {
+		return "", err
+	}
+
+	// Maximum 32KB size per stream.
+	buf := make([]byte, chunkSize)
+
+	for {
+		num, err := file.Payload.Read(buf)
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return "", err
+		}
+
+		if err := stream.Send(&pb.UploadFileRequest{
+			Name:      file.PayloadName,
+			ChunkData: buf[:num]}); err != nil {
+			return "", err
+		}
+	}
+
+	res, err := stream.CloseAndRecv()
+	if err != nil {
+		return "", err
+	}
+
+	return res.FileName, nil
 }

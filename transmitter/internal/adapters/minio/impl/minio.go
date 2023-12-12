@@ -6,7 +6,6 @@ import (
 	"log"
 )
 
-// MinioProvider - Наш провайдер для хранилища
 type MinioProvider struct {
 	MinioAuthData
 	Client *minio.Client
@@ -20,6 +19,8 @@ type MinioAuthData struct {
 	Ssl                  bool   `yaml:"ssl"`
 	UserObjectBucketName string `yaml:"bucket_name"`
 }
+
+//TODO: эта функция не имеет смысла, сюда написать NewMinioProvider,
 
 func (m *MinioProvider) Connect() error {
 	var err error

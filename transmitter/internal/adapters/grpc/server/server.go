@@ -1,36 +1,88 @@
-package server
+package Server
 
 import (
+	"bytes"
 	"context"
 	miniotype "github.com/central-university-dev/2023-autumn-ab-go-hw-9-g0r0d3tsky/internal/adapters/minio"
 	"github.com/central-university-dev/2023-autumn-ab-go-hw-9-g0r0d3tsky/internal/adapters/repo"
+	"github.com/central-university-dev/2023-autumn-ab-go-hw-9-g0r0d3tsky/internal/domain"
 	pb "github.com/central-university-dev/2023-autumn-ab-go-hw-9-g0r0d3tsky/service"
+	"github.com/google/uuid"
 	"io"
+	"log"
 )
 
 var chunkSize = 1024 * 32
 
-type server struct {
-	miniotype.FileDB
-	repo.FileMeta
+type Server struct {
+	m miniotype.FileDB
+	p repo.FileMeta
+
 	pb.UnimplementedTransmitterServer
 }
 
-//	func (serv *server) CreateFile(ctx context.Context, req *s.CreateFileRequest) (*s.SuccessResponse, error) {
-//		//TODO:
-//		return &s.SuccessResponse{Response: "create success"}, nil
-//	}
-func ServerNew(fileDB miniotype.FileDB, fileMeta repo.FileMeta) pb.TransmitterServer {
-	return &server{
-		FileDB:   fileDB,
-		FileMeta: fileMeta,
-	}
+type ServerParams struct {
+	M miniotype.FileDB
+	P repo.FileMeta
 }
 
-func (serv *server) GetFile(req *pb.GetFileRequest, stream pb.Transmitter_GetFileServer) error {
+func ServerNew(params *ServerParams) pb.TransmitterServer {
+	return &Server{
+		m:                              params.M,
+		p:                              params.P,
+		UnimplementedTransmitterServer: pb.UnimplementedTransmitterServer{},
+	}
+}
+func (serv *Server) UploadFile(stream pb.Transmitter_UploadFileServer) error {
+
+	fileData := []byte{}
+	var name string
+	for {
+		req, err := stream.Recv()
+		if err == io.EOF {
+			name = req.Name
+			log.Print("no more data")
+			break
+		}
+		if err != nil {
+			return err
+		}
+
+		fileData = append(fileData, req.ChunkData...)
+	}
+	reader := bytes.NewReader(fileData)
+	fileU := &domain.FileUnit{
+		Payload:     reader,
+		PayloadName: name,
+		PayloadSize: len(fileData),
+	}
+
+	name, err := serv.m.UploadFile(context.TODO(), fileU)
+	if err != nil {
+		return err
+	}
+	id, err := uuid.NewUUID()
+	if err != nil {
+		return err
+	}
+	file := &domain.File{
+		ID:   id,
+		Name: fileU.PayloadName,
+		Size: fileU.PayloadSize,
+	}
+	_, err = serv.p.UploadFile(file)
+	if err != nil {
+		return err
+	}
+
+	return nil
+
+}
+
+func (serv *Server) GetFile(req *pb.GetFileRequest, stream pb.Transmitter_GetFileServer) error {
 	fileName := req.GetName()
 
-	fileUnit, err := serv.FileDB.DownloadFile(context.TODO(), fileName)
+	fileUnit, err := serv.m.DownloadFile(context.TODO(), fileName)
 	if err != nil {
 		return err
 	}
@@ -56,8 +108,8 @@ func (serv *server) GetFile(req *pb.GetFileRequest, stream pb.Transmitter_GetFil
 	return nil
 }
 
-func (serv *server) GetFileList(context.Context, *pb.GetFileListRequest) (*pb.GetFileListResponse, error) {
-	fileList, err := serv.FileDB.GetList()
+func (serv *Server) GetFileList(context.Context, *pb.GetFileListRequest) (*pb.GetFileListResponse, error) {
+	fileList, err := serv.m.GetList()
 	if err != nil {
 		return nil, err
 	}
@@ -67,20 +119,15 @@ func (serv *server) GetFileList(context.Context, *pb.GetFileListRequest) (*pb.Ge
 
 	return response, nil
 }
-func (serv *server) GetFileInfo(ctx context.Context, req *pb.GetFileInfoRequest) (*pb.GetFileInfoResponse, error) {
+func (serv *Server) GetFileInfo(ctx context.Context, req *pb.GetFileInfoRequest) (*pb.GetFileInfoResponse, error) {
 	fileName := req.GetName()
-	fileInfo, err := serv.FileDB.DownloadFile(ctx, fileName)
-	if err != nil {
-		return nil, err
-	}
-	fileMeta, err := serv.FileMeta.GetFileByName(fileName)
+	fileInfo, err := serv.m.DownloadFile(ctx, fileName)
 	if err != nil {
 		return nil, err
 	}
 	file := &pb.File{
-		Name:  fileName,
-		Size:  int32(fileInfo.PayloadSize),
-		Owner: fileMeta.Owner,
+		Name: fileName,
+		Size: int32(fileInfo.PayloadSize),
 	}
 	response := &pb.GetFileInfoResponse{
 		File: file,

@@ -8,14 +8,17 @@ import (
 )
 
 type FileDB interface {
+	UploadFile(ctx context.Context, object *domain.FileUnit) (string, error)
 	DownloadFile(ctx context.Context, name string) (*domain.FileUnit, error)
 	GetList() ([]string, error)
 }
 
+// TODO: убрать всё кроме интрефейса отсюда
 type Minio struct {
 	FileDB
 }
 
+// ToDO: мб перенести её в impl и объединить с Connect
 func NewStorageMinio(data impl.MinioAuthData) *Minio {
 	minioProvider := &impl.MinioProvider{
 		MinioAuthData: data,

@@ -7,7 +7,6 @@ package transmitter;
 message File {
   string name = 1;
   int32 size = 2;
-  string owner = 3;
 }
 
 message GetFileRequest {
@@ -31,17 +30,23 @@ message GetFileInfoRequest{
 message GetFileInfoResponse {
   File file = 1;
 }
-//message CreateFileRequest{
-//    File file = 1;
-//}
 message SuccessResponse{
   string response = 1;
+}
+message UploadFileRequest {
+  string name = 1;
+  bytes chunk_data = 2;
+}
+
+message UploadResponse {
+  string file_name = 1;
+  bool success = 2;
 }
 
 
 service Transmitter {
-   //rpc CreateFile(CreateFileRequest) returns (SuccessResponse);
-   rpc GetFile(GetFileRequest) returns (stream GetFileResponse) ;
-   rpc GetFileList(GetFileListRequest) returns (GetFileListResponse) ;
-   rpc GetFileInfo(GetFileInfoRequest) returns (GetFileInfoResponse);
+  rpc UploadFile(stream UploadFileRequest) returns (UploadResponse) ;
+  rpc GetFile(GetFileRequest) returns (stream GetFileResponse) ;
+  rpc GetFileList(GetFileListRequest) returns (GetFileListResponse) ;
+  rpc GetFileInfo(GetFileInfoRequest) returns (GetFileInfoResponse);
 }

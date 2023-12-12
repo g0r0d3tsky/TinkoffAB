@@ -19,6 +19,7 @@ import (
 const _ = grpc.SupportPackageIsVersion7
 
 const (
+	Transmitter_UploadFile_FullMethodName  = "/transmitter.Transmitter/UploadFile"
 	Transmitter_GetFile_FullMethodName     = "/transmitter.Transmitter/GetFile"
 	Transmitter_GetFileList_FullMethodName = "/transmitter.Transmitter/GetFileList"
 	Transmitter_GetFileInfo_FullMethodName = "/transmitter.Transmitter/GetFileInfo"
@@ -28,7 +29,7 @@ const (
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type TransmitterClient interface {
-	// rpc CreateFile(CreateFileRequest) returns (SuccessResponse);
+	UploadFile(ctx context.Context, opts ...grpc.CallOption) (Transmitter_UploadFileClient, error)
 	GetFile(ctx context.Context, in *GetFileRequest, opts ...grpc.CallOption) (Transmitter_GetFileClient, error)
 	GetFileList(ctx context.Context, in *GetFileListRequest, opts ...grpc.CallOption) (*GetFileListResponse, error)
 	GetFileInfo(ctx context.Context, in *GetFileInfoRequest, opts ...grpc.CallOption) (*GetFileInfoResponse, error)
@@ -42,8 +43,42 @@ func NewTransmitterClient(cc grpc.ClientConnInterface) TransmitterClient {
 	return &transmitterClient{cc}
 }
 
+func (c *transmitterClient) UploadFile(ctx context.Context, opts ...grpc.CallOption) (Transmitter_UploadFileClient, error) {
+	stream, err := c.cc.NewStream(ctx, &Transmitter_ServiceDesc.Streams[0], Transmitter_UploadFile_FullMethodName, opts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &transmitterUploadFileClient{stream}
+	return x, nil
+}
+
+type Transmitter_UploadFileClient interface {
+	Send(*UploadFileRequest) error
+	CloseAndRecv() (*UploadResponse, error)
+	grpc.ClientStream
+}
+
+type transmitterUploadFileClient struct {
+	grpc.ClientStream
+}
+
+func (x *transmitterUploadFileClient) Send(m *UploadFileRequest) error {
+	return x.ClientStream.SendMsg(m)
+}
+
+func (x *transmitterUploadFileClient) CloseAndRecv() (*UploadResponse, error) {
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	m := new(UploadResponse)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
 func (c *transmitterClient) GetFile(ctx context.Context, in *GetFileRequest, opts ...grpc.CallOption) (Transmitter_GetFileClient, error) {
-	stream, err := c.cc.NewStream(ctx, &Transmitter_ServiceDesc.Streams[0], Transmitter_GetFile_FullMethodName, opts...)
+	stream, err := c.cc.NewStream(ctx, &Transmitter_ServiceDesc.Streams[1], Transmitter_GetFile_FullMethodName, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -96,7 +131,7 @@ func (c *transmitterClient) GetFileInfo(ctx context.Context, in *GetFileInfoRequ
 // All implementations must embed UnimplementedTransmitterServer
 // for forward compatibility
 type TransmitterServer interface {
-	// rpc CreateFile(CreateFileRequest) returns (SuccessResponse);
+	UploadFile(Transmitter_UploadFileServer) error
 	GetFile(*GetFileRequest, Transmitter_GetFileServer) error
 	GetFileList(context.Context, *GetFileListRequest) (*GetFileListResponse, error)
 	GetFileInfo(context.Context, *GetFileInfoRequest) (*GetFileInfoResponse, error)
@@ -107,6 +142,9 @@ type TransmitterServer interface {
 type UnimplementedTransmitterServer struct {
 }
 
+func (UnimplementedTransmitterServer) UploadFile(Transmitter_UploadFileServer) error {
+	return status.Errorf(codes.Unimplemented, "method UploadFile not implemented")
+}
 func (UnimplementedTransmitterServer) GetFile(*GetFileRequest, Transmitter_GetFileServer) error {
 	return status.Errorf(codes.Unimplemented, "method GetFile not implemented")
 }
@@ -127,6 +165,32 @@ type UnsafeTransmitterServer interface {
 
 func RegisterTransmitterServer(s grpc.ServiceRegistrar, srv TransmitterServer) {
 	s.RegisterService(&Transmitter_ServiceDesc, srv)
+}
+
+func _Transmitter_UploadFile_Handler(srv interface{}, stream grpc.ServerStream) error {
+	return srv.(TransmitterServer).UploadFile(&transmitterUploadFileServer{stream})
+}
+
+type Transmitter_UploadFileServer interface {
+	SendAndClose(*UploadResponse) error
+	Recv() (*UploadFileRequest, error)
+	grpc.ServerStream
+}
+
+type transmitterUploadFileServer struct {
+	grpc.ServerStream
+}
+
+func (x *transmitterUploadFileServer) SendAndClose(m *UploadResponse) error {
+	return x.ServerStream.SendMsg(m)
+}
+
+func (x *transmitterUploadFileServer) Recv() (*UploadFileRequest, error) {
+	m := new(UploadFileRequest)
+	if err := x.ServerStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
 }
 
 func _Transmitter_GetFile_Handler(srv interface{}, stream grpc.ServerStream) error {
@@ -203,6 +267,11 @@ var Transmitter_ServiceDesc = grpc.ServiceDesc{
 		},
 	},
 	Streams: []grpc.StreamDesc{
+		{
+			StreamName:    "UploadFile",
+			Handler:       _Transmitter_UploadFile_Handler,
+			ClientStreams: true,
+		},
 		{
 			StreamName:    "GetFile",
 			Handler:       _Transmitter_GetFile_Handler,

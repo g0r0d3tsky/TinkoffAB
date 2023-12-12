@@ -10,19 +10,19 @@ import (
 )
 
 // UploadFile - Отправляет файл в minio
-//func (m *MinioProvider) UploadFile(ctx context.Context, object domain.File) (string, error) {
-//
-//	_, err := m.client.PutObject(
-//		ctx,
-//		UserObjectsBucketName, // Константа с именем бакета
-//		object.Name,
-//		object.ID,
-//		object.P,
-//		minio.PutObjectOptions{ContentType: "image/png"},
-//	)
-//
-//	return imageName, err
-//}
+func (m *MinioProvider) UploadFile(ctx context.Context, object *domain.FileUnit) (string, error) {
+
+	_, err := m.Client.PutObject(
+		ctx,
+		m.UserObjectBucketName, // Константа с именем бакета
+		object.PayloadName,
+		object.Payload,
+		int64(object.PayloadSize),
+		minio.PutObjectOptions{ContentType: "image/png"},
+	)
+
+	return object.PayloadName, err
+}
 
 // DownloadFile - Возвращает файл из minio
 func (m *MinioProvider) DownloadFile(ctx context.Context, name string) (*domain.FileUnit, error) {
@@ -50,10 +50,10 @@ func (m *MinioProvider) DownloadFile(ctx context.Context, name string) (*domain.
 
 	return fileUnit, nil
 }
+
 func (m *MinioProvider) GetList() ([]string, error) {
-	// List objects in the bucket
 	objectCh := m.Client.ListObjects(context.Background(), m.UserObjectBucketName, minio.ListObjectsOptions{
-		Recursive: true, // Set to false if you only want to list objects in the root directory
+		Recursive: true,
 	})
 
 	var list []string
