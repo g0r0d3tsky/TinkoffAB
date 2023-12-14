@@ -11,10 +11,10 @@ type FilePostgres struct {
 	db *sqlx.DB
 }
 
-func (fp *FilePostgres) IsFileExists(fileID uuid.UUID) (bool, error) {
-	query := "SELECT COUNT(*) FROM files WHERE id = $1"
+func (fp *FilePostgres) IsFileExists(fileName string) (bool, error) {
+	query := "SELECT COUNT(*) FROM files WHERE name = $1"
 	var count int
-	err := fp.db.QueryRow(query, fileID).Scan(&count)
+	err := fp.db.QueryRow(query, fileName).Scan(&count)
 	if err != nil {
 		return false, err
 	}
@@ -23,7 +23,7 @@ func (fp *FilePostgres) IsFileExists(fileID uuid.UUID) (bool, error) {
 }
 func (fp *FilePostgres) UploadFile(f *domain.File) (uuid.UUID, error) {
 	// Проверка наличия файла в базе данных
-	exists, err := fp.IsFileExists(f.ID)
+	exists, err := fp.IsFileExists(f.Name)
 	if err != nil {
 		return uuid.UUID{}, err
 	}
