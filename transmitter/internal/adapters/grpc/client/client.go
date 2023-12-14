@@ -31,7 +31,7 @@ func New() error {
 	if err != nil {
 		return err
 	}
-	if err := env.Parse(&cfg); err != nil {
+	if err := env.Parse(cfg); err != nil {
 		return fmt.Errorf("parse config: %w", err)
 	}
 
