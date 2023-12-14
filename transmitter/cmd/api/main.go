@@ -67,7 +67,7 @@ func main() {
 	defer func(lis net.Listener) {
 		err := lis.Close()
 		if err != nil {
-			log.Fatalf("can`t cloce %w", err)
+			log.Fatalf("can`t close %w", err)
 			return
 		}
 	}(lis)

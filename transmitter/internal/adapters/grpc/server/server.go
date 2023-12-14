@@ -40,13 +40,13 @@ func (serv *Server) UploadFile(stream pb.Transmitter_UploadFileServer) error {
 	for {
 		req, err := stream.Recv()
 		if err == io.EOF {
-			name = req.Name
 			log.Print("no more data")
 			break
 		}
 		if err != nil {
 			return err
 		}
+		name = req.Name
 
 		fileData = append(fileData, req.ChunkData...)
 	}

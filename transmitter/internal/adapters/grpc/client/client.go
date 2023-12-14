@@ -1,6 +1,7 @@
 package client
 
 import (
+	"bufio"
 	"context"
 	"fmt"
 	"github.com/central-university-dev/2023-autumn-ab-go-hw-9-g0r0d3tsky/internal/domain"
@@ -48,13 +49,14 @@ func New() error {
 
 	for {
 		fmt.Print("Введите команду: ")
-		var input string
-		_, err := fmt.Scanln(&input)
-		if err != nil {
+		scanner := bufio.NewScanner(os.Stdin)
+		if !scanner.Scan() {
+			err := scanner.Err()
 			log.Fatalf("Ошибка при чтении команды: %v", err)
+			return err
 		}
 
-		args := strings.Split(input, " ")
+		args := strings.Split(scanner.Text(), " ")
 		if len(args) == 0 {
 			fmt.Println("Не указана команда")
 			continue
