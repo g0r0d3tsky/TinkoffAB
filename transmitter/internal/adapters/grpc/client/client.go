@@ -3,12 +3,11 @@ package client
 import (
 	"context"
 	"fmt"
-	"github.com/caarlos0/env/v9"
 	"github.com/central-university-dev/2023-autumn-ab-go-hw-9-g0r0d3tsky/internal/domain"
 	pb "github.com/central-university-dev/2023-autumn-ab-go-hw-9-g0r0d3tsky/service"
-	"github.com/joho/godotenv"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	"gopkg.in/yaml.v3"
 	"io"
 	"log"
 	"os"
@@ -17,7 +16,7 @@ import (
 )
 
 type Config struct {
-	ServerAddress string `env:"SERVER_ADDRESS"`
+	ServerAddress string `yaml:"server_address"`
 }
 type Client struct {
 	pb.TransmitterClient
@@ -26,13 +25,17 @@ type Client struct {
 var chunkSize = 1024 * 32
 
 func New() error {
+
 	cfg := &Config{}
-	err := godotenv.Load(".env")
+	yamlFile, err := os.ReadFile("config_server.yaml")
 	if err != nil {
+		log.Fatalf("can not load yaml: %v", err)
 		return err
 	}
-	if err := env.Parse(cfg); err != nil {
-		return fmt.Errorf("parse config: %w", err)
+	err = yaml.Unmarshal(yamlFile, &cfg)
+	if err != nil {
+		log.Fatalf("can not unmarshal config %v", err)
+		return err
 	}
 
 	conn, err := grpc.Dial(cfg.ServerAddress, grpc.WithTransportCredentials(insecure.NewCredentials()))
@@ -41,7 +44,6 @@ func New() error {
 	}
 	defer conn.Close()
 
-	// Создание клиента
 	client := pb.NewTransmitterClient(conn)
 
 	for {

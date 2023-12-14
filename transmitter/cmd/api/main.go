@@ -24,11 +24,13 @@ func main() {
 		log.Fatalf("minio config %v", err)
 		return
 	}
+
 	err = yaml.Unmarshal(yamlFile, &cfgMinio)
 	if err != nil {
 		log.Fatalf("can not unmarshal config %v", err)
 		return
 	}
+
 	fileDB := miniotype.NewStorageMinio(cfgMinio)
 	if err != nil {
 		log.Fatalf("can not create minio storage %v", err)
@@ -36,7 +38,11 @@ func main() {
 	}
 
 	var cfgPostgres repo.ConfigPostgres
-	yamlFile, _ = os.ReadFile("config_postgres.yaml")
+	yamlFile, err = os.ReadFile("config_postgres.yaml")
+	if err != nil {
+		log.Fatalf("config postgres: %v", err)
+		return
+	}
 	err = yaml.Unmarshal(yamlFile, &cfgPostgres)
 	if err != nil {
 		log.Fatalf("can not unmarshal postgres config")

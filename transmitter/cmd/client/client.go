@@ -12,10 +12,10 @@ func main() {
 
 	// Initialise gRPC connection.
 	conn, err := grpc.Dial(":50051", grpc.WithTransportCredentials(insecure.NewCredentials()))
-	slog.Info("Starting dial :50051")
 	if err != nil {
 		log.Fatalln(err)
 	}
+	slog.Info("Starting dial :50051")
 
 	defer func(conn *grpc.ClientConn) {
 		err := conn.Close()
