@@ -22,7 +22,6 @@ func (fp *FilePostgres) IsFileExists(fileName string) (bool, error) {
 	return count > 0, nil
 }
 func (fp *FilePostgres) UploadFile(f *domain.File) (uuid.UUID, error) {
-	// Проверка наличия файла в базе данных
 	exists, err := fp.IsFileExists(f.Name)
 	if err != nil {
 		return uuid.UUID{}, err
