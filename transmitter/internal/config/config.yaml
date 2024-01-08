@@ -1,0 +1,19 @@
+server_address: "server:50051"
+
+
+postgres:
+  host: "db"
+  port: "5432"
+  user: postgres
+  password: postgres
+  db_name: postgres
+  ssl_mode: disable
+
+
+minio:
+  url: "minio:9000/"
+  user: "minioadmin"
+  password: "minioadmin"
+  token: ""
+  ssl: false
+  bucket_name: "hw9-files"

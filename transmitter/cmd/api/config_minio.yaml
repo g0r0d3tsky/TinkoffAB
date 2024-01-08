@@ -1,6 +1,0 @@
-url: "localhost:9000/"
-user: "minioadmin"
-password: "minioadmin"
-token: ""
-ssl: false
-bucket_name: "hw9-files"

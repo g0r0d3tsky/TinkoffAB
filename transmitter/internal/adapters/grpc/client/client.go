@@ -4,11 +4,11 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"github.com/central-university-dev/2023-autumn-ab-go-hw-9-g0r0d3tsky/internal/config"
 	"github.com/central-university-dev/2023-autumn-ab-go-hw-9-g0r0d3tsky/internal/domain"
 	pb "github.com/central-university-dev/2023-autumn-ab-go-hw-9-g0r0d3tsky/service"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
-	"gopkg.in/yaml.v3"
 	"io"
 	"log"
 	"os"
@@ -27,15 +27,9 @@ var chunkSize = 1024 * 32
 
 func New() error {
 
-	cfg := &Config{}
-	yamlFile, err := os.ReadFile("config_server.yaml")
+	cfg, err := config.Read()
 	if err != nil {
 		log.Fatalf("can not load yaml: %v", err)
-		return err
-	}
-	err = yaml.Unmarshal(yamlFile, &cfg)
-	if err != nil {
-		log.Fatalf("can not unmarshal config %v", err)
 		return err
 	}
 

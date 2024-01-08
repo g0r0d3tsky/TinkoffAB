@@ -3,57 +3,38 @@ package main
 import (
 	server_grpc "github.com/central-university-dev/2023-autumn-ab-go-hw-9-g0r0d3tsky/internal/adapters/grpc/server"
 	miniotype "github.com/central-university-dev/2023-autumn-ab-go-hw-9-g0r0d3tsky/internal/adapters/minio"
-	minio2 "github.com/central-university-dev/2023-autumn-ab-go-hw-9-g0r0d3tsky/internal/adapters/minio/impl"
 	"github.com/central-university-dev/2023-autumn-ab-go-hw-9-g0r0d3tsky/internal/adapters/repo"
 	"github.com/central-university-dev/2023-autumn-ab-go-hw-9-g0r0d3tsky/internal/adapters/repo/impl"
+	"github.com/central-university-dev/2023-autumn-ab-go-hw-9-g0r0d3tsky/internal/config"
 	pb "github.com/central-university-dev/2023-autumn-ab-go-hw-9-g0r0d3tsky/service"
 	_ "github.com/lib/pq"
 	"google.golang.org/grpc"
-	"gopkg.in/yaml.v3"
 	"log"
 	"log/slog"
 	"net"
-	"os"
 )
 
 func main() {
 
-	var cfgMinio minio2.MinioAuthData
-	yamlFile, err := os.ReadFile("config_minio.yaml")
+	cfg, err := config.Read()
 	if err != nil {
-		log.Fatalf("minio config %v", err)
+		log.Fatalf("config read: %v", err)
 		return
 	}
 
-	err = yaml.Unmarshal(yamlFile, &cfgMinio)
-	if err != nil {
-		log.Fatalf("can not unmarshal config %v", err)
-		return
-	}
-
-	fileDB := miniotype.NewStorageMinio(cfgMinio)
+	fileDB := miniotype.NewStorageMinio(cfg.Minio)
 	if err != nil {
 		log.Fatalf("can not create minio storage %v", err)
 		return
 	}
 
-	var cfgPostgres repo.ConfigPostgres
-	yamlFile, err = os.ReadFile("config_postgres.yaml")
-	if err != nil {
-		log.Fatalf("config postgres: %v", err)
-		return
-	}
-	err = yaml.Unmarshal(yamlFile, &cfgPostgres)
-	if err != nil {
-		log.Fatalf("can not unmarshal postgres config")
-		return
-	}
-	db, err := repo.NewPostgresDB(cfgPostgres)
+	db, err := repo.NewPostgresDB(cfg.Postgres)
 	if err != nil {
 		log.Fatalf("can not create postgres storage %v", err)
 		return
 	}
 	metaDB := impl.NewFilePostgres(db)
+
 	par := &server_grpc.ServerParams{
 		M: fileDB,
 		P: metaDB,

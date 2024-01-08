@@ -1,0 +1,65 @@
+version: '3.8'
+services:
+
+
+  server:
+    build:
+      context: .
+      dockerfile: Dockerfile.server
+    ports:
+      - 50051:50051
+    depends_on:
+      - db
+      - minio
+    networks:
+        - internal
+
+
+  client:
+    build:
+      context: .
+      dockerfile: Dockerfile.client
+    stdin_open: true
+    #tty: true
+    depends_on:
+      - server
+    networks:
+      - internal
+
+  minio:
+    restart: always
+    image: quay.io/minio/minio
+    ports:
+      - 9000:9000
+      - 9090:9090
+    environment:
+      - MINIO_ROOT_USER=minioadmin
+      - MINIO_ROOT_PASSWORD=minioadmin
+    volumes:
+      - ~/minio/data:/data
+    command: server /data --console-address ":9090"
+    networks:
+      - internal
+
+
+  db:
+    container_name: db
+    restart: always
+    image: postgres:latest
+    ports:
+      - 5432:5432
+    environment:
+      - POSTGRES_PASSWORD=postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - internal
+
+
+volumes:
+  minio_data:
+  postgres_data:
+
+networks:
+  internal:
+    driver: bridge

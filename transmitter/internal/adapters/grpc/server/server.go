@@ -35,7 +35,7 @@ func ServerNew(params *ServerParams) pb.TransmitterServer {
 }
 func (serv *Server) UploadFile(stream pb.Transmitter_UploadFileServer) error {
 
-	fileData := []byte{}
+	var fileData []byte
 	var name string
 	for {
 		req, err := stream.Recv()
@@ -46,6 +46,7 @@ func (serv *Server) UploadFile(stream pb.Transmitter_UploadFileServer) error {
 		if err != nil {
 			return err
 		}
+		stream.Context()
 		name = req.Name
 
 		fileData = append(fileData, req.ChunkData...)
