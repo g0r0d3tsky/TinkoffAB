@@ -21,3 +21,8 @@ func (uc *UC) CreateMessage(ctx context.Context, message *domain.Message) error 
 func (uc *UC) GetAmountMessage(ctx context.Context, amount int) ([]*domain.Message, error) {
 	return uc.Repo.GetAmountMessage(ctx, amount)
 }
+func New(repo repository.ServiceRepository) *UC {
+	return &UC{
+		Repo: repo,
+	}
+}
