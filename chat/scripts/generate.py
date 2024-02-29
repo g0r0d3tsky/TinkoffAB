@@ -7,7 +7,7 @@ from faker import Faker
 
 FAKE = Faker(locale='ru_RU')
 
-COUNT = 2_000_000
+COUNT = 20_000
 
 DATA = {
     'id': [],
