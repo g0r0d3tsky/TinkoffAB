@@ -2,6 +2,7 @@ package main
 
 import (
 	"2024-spring-ab-go-hw-1-template-g0r0d3tsky/chat/internal/config"
+	"2024-spring-ab-go-hw-1-template-g0r0d3tsky/chat/internal/handler"
 	"2024-spring-ab-go-hw-1-template-g0r0d3tsky/chat/internal/repository"
 	"2024-spring-ab-go-hw-1-template-g0r0d3tsky/chat/internal/usecase"
 	"fmt"
@@ -9,11 +10,6 @@ import (
 	"log"
 	"log/slog"
 )
-
-type app struct {
-	UC     *usecase.UC
-	config *config.Config
-}
 
 func main() {
 	err := godotenv.Load()
@@ -38,15 +34,12 @@ func main() {
 		}
 	}()
 	repo := repository.New(dbPool)
-	//fmt.Printf("%+v", repo)
 	service := usecase.New(repo)
-	//fmt.Printf("%+v", service)
+	handlers := handler.NewHandler(service)
+	router := handlers.RegisterHandlers()
+	slog.Info("starting listening port: ")
+	err = handler.Serve(c, router)
 
-	app := &app{
-		UC:     service,
-		config: c,
-	}
-	err = app.Serve()
 	if err != nil {
 		slog.Error("running server", err)
 	}
