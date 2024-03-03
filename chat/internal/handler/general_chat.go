@@ -2,6 +2,7 @@ package handler
 
 import (
 	"2024-spring-ab-go-hw-1-template-g0r0d3tsky/chat/internal/domain"
+	"2024-spring-ab-go-hw-1-template-g0r0d3tsky/chat/internal/handler/models"
 	"2024-spring-ab-go-hw-1-template-g0r0d3tsky/chat/internal/usecase"
 	"context"
 	"encoding/json"
@@ -23,11 +24,6 @@ var (
 
 	clients = make(map[*websocket.Conn]struct{})
 )
-
-type mes struct {
-	UserNickname string
-	Content      string
-}
 
 type Handler struct {
 	services *usecase.UC
@@ -57,68 +53,78 @@ func (h *Handler) echo(w http.ResponseWriter, r *http.Request) {
 			break
 		}
 
-		var message mes
+		var message models.Message
 		err = json.Unmarshal(messageBytes, &message)
 		if err != nil {
 			log.Println("Error decoding message:", err)
 			continue
 		}
-		//TODO: fix
-		message_ := &domain.Message{
+		m := &domain.Message{
 			UserNickname: message.UserNickname,
 			Content:      message.Content,
 		}
-		err = h.services.CreateMessage(context.TODO(), message_)
+		err = h.services.CreateMessage(r.Context(), m)
 		if err != nil {
 			log.Println("Error saving message:", err)
 			return
 		}
 
 		// Теперь мы рассылаем сообщения всем клиентам
-		go writeMessage(message)
+		go writeMessage(r.Context(), message)
 
 		go messageHandler(message)
 	}
 }
 
-func writeMessage(message mes) {
-	messageBytes, err := json.Marshal(message)
-	if err != nil {
-		log.Println("Error encoding message:", err)
+func writeMessage(ctx context.Context, message models.Message) {
+	select {
+	case <-ctx.Done():
 		return
-	}
-
-	for conn := range clients {
-		err := conn.WriteMessage(websocket.TextMessage, messageBytes)
+	default:
+		messageBytes, err := json.Marshal(message)
 		if err != nil {
+			log.Println("Error encoding message:", err)
 			return
+		}
+
+		for conn := range clients {
+			err := conn.WriteMessage(websocket.TextMessage, messageBytes)
+			if err != nil {
+				return
+			}
 		}
 	}
 }
 
-func messageHandler(message mes) {
+func messageHandler(message models.Message) {
 	fmt.Printf("%v : %v \n", message.UserNickname, message.Content)
 
 }
 func (h *Handler) sendLastMessages(ctx context.Context, connection *websocket.Conn) {
-	messages, err := h.services.GetAmountMessage(ctx, 10)
-	if err != nil {
-		log.Fatal("getting messages: ", err)
+	select {
+	case <-ctx.Done():
 		return
-	}
-	for _, msg := range messages {
-		messageBytes, err := json.Marshal(msg)
+	default:
+		messages, err := h.services.GetAmountMessage(ctx, 10)
 		if err != nil {
-			log.Println("Error encoding message:", err)
-			continue
+			log.Fatal("getting messages: ", err)
+			return
 		}
+		for _, msg := range messages {
+			messageBytes, err := json.Marshal(msg)
+			if err != nil {
+				log.Println("Error encoding message:", err)
+				continue
+			}
 
-		err = connection.WriteMessage(websocket.TextMessage, messageBytes)
-		if err != nil {
-			log.Println("Error sending message:", err)
-			continue
+			err = connection.WriteMessage(websocket.TextMessage, messageBytes)
+			if err != nil {
+				log.Println("Error sending message:", err)
+				continue
+			}
 		}
 	}
+
 }
 func (h *Handler) RegisterHandlers() http.Handler {
 	router := mux.NewRouter()
