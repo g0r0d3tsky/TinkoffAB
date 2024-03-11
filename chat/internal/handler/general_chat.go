@@ -12,6 +12,7 @@ import (
 	"log"
 	"log/slog"
 	"net/http"
+	"sync"
 )
 
 var (
@@ -21,19 +22,39 @@ var (
 			return true
 		},
 	}
-
-	clients = make(map[*websocket.Conn]struct{})
 )
 
-type Handler struct {
-	services *usecase.UC
+func (h *Handler) AddClient(client *websocket.Conn) {
+	h.mutex.Lock()
+	defer h.mutex.Unlock()
+	h.Clients[client] = struct{}{}
 }
 
-func NewHandler(services *usecase.UC) *Handler {
-	return &Handler{services: services}
+func (h *Handler) RemoveClient(client *websocket.Conn) {
+	h.mutex.Lock()
+	defer h.mutex.Unlock()
+	delete(h.Clients, client)
 }
 
-func (h *Handler) echo(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) GetClients() map[*websocket.Conn]struct{} {
+	h.mutex.Lock()
+	defer h.mutex.Unlock()
+	clientsCopy := make(map[*websocket.Conn]struct{})
+	for client := range h.Clients {
+		clientsCopy[client] = struct{}{}
+	}
+	return clientsCopy
+}
+
+func NewHandler(services usecase.MessageUseCase) *Handler {
+	return &Handler{
+		Services: services,
+		Clients:  make(map[*websocket.Conn]struct{}),
+		mutex:    sync.Mutex{},
+	}
+}
+
+func (h *Handler) Echo(w http.ResponseWriter, r *http.Request) {
 	connection, _ := upgrader.Upgrade(w, r, nil)
 	defer func(connection *websocket.Conn) {
 		err := connection.Close()
@@ -41,10 +62,18 @@ func (h *Handler) echo(w http.ResponseWriter, r *http.Request) {
 			slog.Error("connection closing", err)
 		}
 	}(connection)
-	h.sendLastMessages(context.TODO(), connection)
 
-	clients[connection] = struct{}{}
-	defer delete(clients, connection)
+	h.mutex.Lock()
+	h.Clients[connection] = struct{}{}
+	h.mutex.Unlock()
+
+	defer func() {
+		h.mutex.Lock()
+		delete(h.Clients, connection)
+		h.mutex.Unlock()
+	}()
+
+	h.sendLastMessages(r.Context(), connection)
 
 	for {
 		mt, messageBytes, err := connection.ReadMessage()
@@ -63,20 +92,19 @@ func (h *Handler) echo(w http.ResponseWriter, r *http.Request) {
 			UserNickname: message.UserNickname,
 			Content:      message.Content,
 		}
-		err = h.services.CreateMessage(r.Context(), m)
+		err = h.Services.CreateMessage(r.Context(), m)
 		if err != nil {
 			log.Println("Error saving message:", err)
 			return
 		}
 
 		// Теперь мы рассылаем сообщения всем клиентам
-		go writeMessage(r.Context(), message)
-
-		go messageHandler(message)
+		go h.writeMessage(r.Context(), message)
+		go h.MessageHandler(message)
 	}
 }
 
-func writeMessage(ctx context.Context, message models.Message) {
+func (h *Handler) writeMessage(ctx context.Context, message models.Message) {
 	select {
 	case <-ctx.Done():
 		return
@@ -87,7 +115,10 @@ func writeMessage(ctx context.Context, message models.Message) {
 			return
 		}
 
-		for conn := range clients {
+		h.mutex.Lock()
+		defer h.mutex.Unlock()
+
+		for conn := range h.Clients {
 			err := conn.WriteMessage(websocket.TextMessage, messageBytes)
 			if err != nil {
 				return
@@ -96,7 +127,7 @@ func writeMessage(ctx context.Context, message models.Message) {
 	}
 }
 
-func messageHandler(message models.Message) {
+func (h *Handler) MessageHandler(message models.Message) {
 	fmt.Printf("%v : %v \n", message.UserNickname, message.Content)
 
 }
@@ -105,7 +136,7 @@ func (h *Handler) sendLastMessages(ctx context.Context, connection *websocket.Co
 	case <-ctx.Done():
 		return
 	default:
-		messages, err := h.services.GetAmountMessage(ctx, 10)
+		messages, err := h.Services.GetAmountMessage(ctx, 10)
 		if err != nil {
 			log.Fatal("getting messages: ", err)
 			return
@@ -128,6 +159,6 @@ func (h *Handler) sendLastMessages(ctx context.Context, connection *websocket.Co
 }
 func (h *Handler) RegisterHandlers() http.Handler {
 	router := mux.NewRouter()
-	router.HandleFunc("/chat", h.echo).Methods("GET")
+	router.HandleFunc("/chat", h.Echo).Methods("GET")
 	return router
 }
